@@ -1,6 +1,13 @@
 import pandas as pd
 import numpy as np
+import warnings
 from scipy.stats import ks_2samp
+
+warnings.filterwarnings(
+    "ignore",
+    category=Warning,
+    message=".*sample arguments is too small.*"
+)
 
 EPS = 1e-8
 
@@ -41,18 +48,12 @@ def compute_rcv(real_df, syn_df, col):
     return cv_syn / (cv_real + EPS)
 
 # -------------------------------
-# 3. KS Similarity (Column Shape)
+# 3. Column Shape (KS Similarity)
 # -------------------------------
 
 def ks_similarity(real_df, syn_df, col):
-    real = real_df[col].dropna()
-    syn = syn_df[col].dropna()
-
-    if len(real) < 5 or len(syn) < 5:
-        return np.nan
-
     try:
-        stat, _ = ks_2samp(real, syn)
+        stat, _ = ks_2samp(real_df[col].dropna(), syn_df[col].dropna())
         return 1 - stat
     except Exception:
         return np.nan
@@ -117,7 +118,7 @@ def evaluate(real_df, syn_df):
 
     results = []
 
-    print(f"{"IDEAL SCORE":<25} RME=0.0–0.3 | RCV=0.8–1.2 | KS=> 0.8\n")
+    print(f"{"IDEAL SCORES":<25} RME=0.0–0.3 | RCV=0.8–1.2 | KS >0.8 | TVD >0.8 | CPT >0.8\n")
 
     for col in numeric_cols:
         if col not in syn_df.columns:
@@ -130,8 +131,9 @@ def evaluate(real_df, syn_df):
         results.append((col, rme, rcv, ks))
 
         print(f"{col:<25} RME={rme:.3f}  |  RCV={rcv:.3f}  |  KS={ks:.3f}")
-
-    print("")
+    
+    corr_sim = correlation_similarity(real_df, syn_df)
+    print(f"\nCPT={corr_sim:.3f}\n")
 
     for col in categorical_cols:
         if col not in syn_df.columns:
@@ -139,10 +141,7 @@ def evaluate(real_df, syn_df):
 
         tvd_sim = tvd_similarity(real_df, syn_df, col)
 
-        print(f"{col:<25} TVD Similarity={tvd_sim:.3f}")
-
-    corr_sim = correlation_similarity(real_df, syn_df)
-    print(f"\nOverall Correlation Similarity: {corr_sim:.3f}")
+        print(f"{col:<25} TVD={tvd_sim:.3f}")
 
     return {
         "numeric": results,
