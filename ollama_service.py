@@ -124,9 +124,9 @@ def call_ollama(prompt):
 
 
 def generate_rows(df, n):
-    print("=" * 50)
-    print(f"Generating {n} rows")
-    print("=" * 50)
+    print("\n" + "="*60)
+    print(f"DATA GENERATION - {n} rows")
+    print("="*60)
 
     all_rows = []
     max_attempts = n * 3
@@ -160,6 +160,4 @@ def generate_rows(df, n):
         attempts += 1
         i += 1
 
-    print(f"\nFinal: {len(all_rows)} valid rows")
-
-    return all_rows, []
+    return all_rows

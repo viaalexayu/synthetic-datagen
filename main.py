@@ -1,14 +1,17 @@
 import pandas as pd
 import ollama_service as ollama
+from evaluator import evaluate
 
 def read_dataset(filename):
     try:
         df = pd.read_csv(filename)
 
-        print("Dataset loaded successfully!")
+        print("\n" + "="*60)
+        print("DATASET IMPORTED")
+        print("="*60)
+        
+        print(f"File name: {filename}")
         print(f"Rows: {len(df)} | Columns: {len(df.columns)}")
-
-        print("\nColumns:")
         print(df.columns.tolist())
 
         return df
@@ -18,7 +21,37 @@ def read_dataset(filename):
 
 df = read_dataset("BGP Network dataset.csv")
 
-rows = ollama.generate_rows(df, n=3)
-print("\nGenerated Rows:")
-for r in rows:
-    print(r)
+all_rows = ollama.generate_rows(df, n=3)
+syn_df = pd.DataFrame(all_rows)
+
+evaluate(df, syn_df)
+
+print("\n" + "="*60)
+print("ROW SELECTION")
+print("="*60)
+
+counter = 1
+
+for row in all_rows:
+    print(str(counter))
+    print(row)
+    counter += 1
+
+accepted_rows = [
+    int(x.strip()) for x in input(
+        "\nEnter index numbers of the rows you want to keep, separated by commas: "
+    ).split(",")
+]
+
+print("\n" + "="*60)
+print("DATASET EXPORTED")
+print("="*60)
+
+selected = []
+
+for i in accepted_rows:
+    selected.append(all_rows[i - 1])
+
+df = pd.concat([df, pd.DataFrame(selected)], ignore_index=True)
+
+print(df.tail())
