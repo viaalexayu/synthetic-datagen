@@ -22,6 +22,13 @@ def get_categorical_columns(df):
         if col not in EXCLUDE_COLS
     ]
 
+def ensure_numeric(df, cols):
+    df = df.copy()
+    for col in cols:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+    return df
+
 # -------------------------------
 # 1. RME (Relative Mean Error)
 # -------------------------------
@@ -114,6 +121,10 @@ def evaluate(real_df, syn_df):
     print("="*60)
 
     numeric_cols = get_numeric_columns(real_df)
+    
+    real_df = ensure_numeric(real_df, numeric_cols)
+    syn_df = ensure_numeric(syn_df, numeric_cols)
+    
     categorical_cols = get_categorical_columns(real_df)
 
     results = []
