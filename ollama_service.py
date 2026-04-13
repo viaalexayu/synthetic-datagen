@@ -7,11 +7,10 @@ from validator import validate_row
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
 OLLAMA_MODEL = "llama3.2:1b"
-BATCH_SIZE = 3
 
 
 def build_prompt(df, n):
-    sample = df.sample(min(5, len(df))).to_dict(orient="records")
+    sample = df.sample(min(2, len(df))).to_dict(orient="records")
 
     prompt = f"""You are a BGP network dataset generator.
 Return ONLY a valid JSON array of exactly {n} new rows. No explanation, no markdown fences.
@@ -42,7 +41,7 @@ Column rules:
 - hege_score: nested JSON string like "{{}}"
 - title: unique string like "event_name_N.pickle"
 
-Here are 5 real rows to learn from:
+Here are 2 real rows to learn from:
 {json.dumps(sample, indent=2)}
 
 Generate exactly {n} new rows. Vary categories. Make every title unique.
@@ -124,72 +123,43 @@ def call_ollama(prompt):
     return response.json()["response"]
 
 
-def generate_batch(df, batch_size):
-    """
-    Generates one small batch of rows.
-    Returns whatever rows it can — skips bad batches silently.
-    """
-    try:
-        prompt = build_prompt(df, batch_size)
-        raw = call_ollama(prompt)
-        print(f"  Batch response (first 300 chars): {raw[:300]}")
-        return clean_json(raw)
-    except Exception as e:
-        print(f"  Batch failed: {e}")
-        return []
-
-
 def generate_rows(df, n):
-    """
-    Keeps calling LLaMA in small batches of BATCH_SIZE
-    until we collect exactly n valid rows or run out of attempts.
-
-    Example: n=10, BATCH_SIZE=3
-      Batch 1 → asks for 3, gets 3  (total: 3/10)
-      Batch 2 → asks for 3, gets 2  (total: 5/10)
-      Batch 3 → asks for 3, gets 3  (total: 8/10)
-      Batch 4 → asks for 2, gets 2  (total: 10/10) done!
-    """
     print("=" * 50)
-    print(f"Generating {n} rows in batches of {BATCH_SIZE}")
+    print(f"Generating {n} rows")
     print("=" * 50)
 
     all_rows = []
-    max_attempts = n * 3  # try up to 3x requested to handle failed batches
+    max_attempts = n * 3
     attempts = 0
-    batch_num = 1
+    i = 0
 
     while len(all_rows) < n and attempts < max_attempts:
-        remaining = n - len(all_rows)
-        batch_size = min(BATCH_SIZE, remaining)
 
-        print(f"Batch {batch_num}: requesting {batch_size} rows "
-              f"({len(all_rows)}/{n} collected so far)...")
+        print(f"Generating row {len(all_rows)+1}/{n}...")
 
-        batch = generate_batch(df, batch_size)
-        print(f"Batch {batch_num}: got {len(batch)} rows back")
+        try:
+            prompt = build_prompt(df, 1)
+            raw = call_ollama(prompt)
 
-        all_rows.extend(batch)
-        attempts += batch_size
-        batch_num += 1
+            row = clean_json(raw)
 
-    print(f"Total rows collected from LLaMA: {len(all_rows)}")
+            if isinstance(row, list):
+                row = row[0]
 
-    # validate every row
-    valid_rows = []
-    rejected_rows = []
+            is_valid, result = validate_row(row, df)
 
-    for row in all_rows:
-        is_valid, result = validate_row(row, df)
-        if is_valid:
-            valid_rows.append(result)
-        else:
-            rejected_rows.append({"row": row, "reason": result})
+            if is_valid:
+                all_rows.append(result)
+                print(f"Accepted ({len(all_rows)}/{n})")
+            else:
+                print(f"Rejected: {result}")
 
-    # trim to exactly n if we collected more
-    valid_rows = valid_rows[:n]
+        except Exception as e:
+            print(f"Error: {e}")
 
-    print(f"Valid: {len(valid_rows)} | Rejected: {len(rejected_rows)}")
-    print("=" * 50)
+        attempts += 1
+        i += 1
 
-    return valid_rows, rejected_rows
+    print(f"\nFinal: {len(all_rows)} valid rows")
+
+    return all_rows, []
