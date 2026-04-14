@@ -54,17 +54,11 @@ for i in accepted_rows:
 
 df = pd.concat([df, pd.DataFrame(selected)], ignore_index=True)
 
-print(df.tail())
 
-
-# Export the final dataset to a CSV file
-output_filename = "BGP_Network_dataset_augmented.csv"
+output_filename = "BGP Network dataset NEW.csv"
 df.to_csv(output_filename, index=False)
 
-print("\n" + "="*60)
-print("FILE SAVED")
-print("="*60)
-print(f"Final dataset saved as: {output_filename}")
+print(f"File name: {output_filename}")
 print(f"Total rows: {len(df)}")
 print(f"Original rows: {len(df) - len(selected)}")
 print(f"New generated rows: {len(selected)}")
